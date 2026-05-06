@@ -1,9 +1,7 @@
-// const app = require('../src/app');
+require("dotenv").config(); 
 
-// module.exports = app;
-
-const app = require('../src/app');
-
+const app = require("../src/app");
+console.log("COOKIES PATH:", process.env.YT_COOKIES_PATH);
 if (process.env.NODE_ENV !== "production") {
     const PORT = process.env.PORT || 3000;
     app.listen(PORT, () => {

@@ -15,3 +15,7 @@ logs
 # Build files
 dist/
 build/
+
+
+# Cookies file (IMPORTANT for YouTube auth)
+cookies.txt

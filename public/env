@@ -8,5 +8,10 @@ APP_TIMEZONE=Asia/Kolkata
 APP_URL=http://localhost:3000
 
 
+# ==============================
+# 🍪 YouTube Cookies (IMPORTANT)
+# ==============================
+YT_COOKIES_PATH=../src/tmp/cookies.txt
+
 
 
