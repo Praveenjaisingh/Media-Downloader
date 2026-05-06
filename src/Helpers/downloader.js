@@ -13,11 +13,18 @@ class Downloader {
         if (!link) {
             return Promise.reject(new Error("Download link is required"));
         }
-        const command = `yt-dlp -f best \
+        let referer = "https://www.youtube.com/";
+        if (link.includes("instagram.com")) {
+            referer = "https://www.instagram.com/";
+        }
+        const command = `yt-dlp \
             --no-check-certificate \
             --no-cache-dir \
-            --user-agent "Mozilla/5.0" \
+            --user-agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64)" \
+            --referer "${referer}" \
+            --add-header "Accept-Language:en-US,en;q=0.9" \
             --restrict-filenames \
+            --merge-output-format mp4 \
             --print after_move:filepath \
             -o "${this.outputDir}/video_%(id)s.%(ext)s" \
             "${link}"`;
