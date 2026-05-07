@@ -4,67 +4,57 @@ const fs = require("fs");
 class Downloader {
     constructor() {
         this.outputDir = "/tmp/downloads";
+        this.cookiesPath = "/tmp/cookies.txt";
 
         if (!fs.existsSync(this.outputDir)) {
             fs.mkdirSync(this.outputDir, { recursive: true });
         }
+    }
 
-        this.cookiesPath = "/tmp/cookies.txt";
-
-        // ----------------------------
-        // Load cookies from base64
-        // ----------------------------
-        if (process.env.YT_COOKIES_B64) {
-            try {
-                const cookies = Buffer.from(
-                    process.env.YT_COOKIES_B64,
-                    "base64"
-                ).toString("utf8");
-
-                fs.writeFileSync(this.cookiesPath, cookies);
-
-                console.log("🍪 Cookies decoded from base64");
-                console.log("📁 Cookies saved:", this.cookiesPath);
-            } catch (err) {
-                console.error("❌ Failed to decode cookies:", err.message);
-            }
-        } else {
-            console.warn("⚠️ YT_COOKIES_B64 missing");
+    // ----------------------------
+    // Always regenerate cookies
+    // ----------------------------
+    ensureCookies() {
+        if (!process.env.YT_COOKIES_B64) {
+            throw new Error("YT_COOKIES_B64 missing in environment");
         }
 
-        console.log(
-            "✅ Cookies exists:",
-            fs.existsSync(this.cookiesPath)
-        );
+        try {
+            const cookies = Buffer.from(
+                process.env.YT_COOKIES_B64,
+                "base64"
+            ).toString("utf8");
+
+            fs.writeFileSync(this.cookiesPath, cookies);
+
+            console.log("🍪 Cookies regenerated at runtime");
+            console.log("📁 Cookies path:", this.cookiesPath);
+        } catch (err) {
+            throw new Error("Failed to decode cookies: " + err.message);
+        }
     }
 
     download(link) {
         if (!link) {
-            return Promise.reject(
-                new Error("Download link is required")
-            );
+            return Promise.reject(new Error("Download link is required"));
         }
 
-        // ----------------------------
-        // Referer logic
-        // ----------------------------
+        // Always regenerate cookies before every request
+        try {
+            this.ensureCookies();
+        } catch (err) {
+            return Promise.reject(err);
+        }
+
+        if (!fs.existsSync(this.cookiesPath)) {
+            return Promise.reject(new Error("Cookies file not created"));
+        }
+
         let referer = "https://www.youtube.com/";
         if (link.includes("instagram.com")) {
             referer = "https://www.instagram.com/";
         }
 
-        // ----------------------------
-        // Ensure cookies exist
-        // ----------------------------
-        if (!fs.existsSync(this.cookiesPath)) {
-            return Promise.reject(
-                new Error("Cookies file not found. Set YT_COOKIES_B64")
-            );
-        }
-
-        // ----------------------------
-        // yt-dlp args (SAFE VERSION)
-        // ----------------------------
         const args = [
             "--cookies",
             this.cookiesPath,
@@ -74,6 +64,12 @@ class Downloader {
 
             "--no-check-certificate",
             "--force-ipv4",
+
+            "--no-part",
+            "--no-cache-dir",
+
+            "--socket-timeout",
+            "30",
 
             "--retries",
             "10",
@@ -126,14 +122,9 @@ class Downloader {
                     console.log("STDERR:\n", stderr);
 
                     if (error) {
-                        return reject(
-                            new Error(stderr || error.message)
-                        );
+                        return reject(new Error(stderr || error.message));
                     }
 
-                    // ----------------------------
-                    // SAFE file path extraction
-                    // ----------------------------
                     const filePath = stdout
                         .split("\n")
                         .map(line => line.trim())
@@ -141,15 +132,11 @@ class Downloader {
                         .pop();
 
                     if (!filePath) {
-                        return reject(
-                            new Error("No output file returned from yt-dlp")
-                        );
+                        return reject(new Error("No output file returned from yt-dlp"));
                     }
 
                     if (!fs.existsSync(filePath)) {
-                        return reject(
-                            new Error("Downloaded file not found on server")
-                        );
+                        return reject(new Error("Downloaded file not found on server"));
                     }
 
                     resolve({
