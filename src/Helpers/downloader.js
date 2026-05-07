@@ -41,8 +41,6 @@ class Downloader {
         const args = [
             "--cookies",
             this.cookiesPath,
-            "--impersonate",
-            "chrome",
             "--extractor-args",
             "youtube:player_client=android,web",
             "--no-check-certificate",
