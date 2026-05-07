@@ -5,20 +5,14 @@ class Downloader {
     constructor() {
         this.outputDir = "/tmp/downloads";
         this.cookiesPath = "/tmp/cookies.txt";
-
         if (!fs.existsSync(this.outputDir)) {
             fs.mkdirSync(this.outputDir, { recursive: true });
         }
     }
-
-    // ----------------------------
-    // Always regenerate cookies
-    // ----------------------------
     ensureCookies() {
         if (!process.env.YT_COOKIES_B64) {
             throw new Error("YT_COOKIES_B64 missing in environment");
         }
-
         try {
             const cookies = Buffer.from(
                 process.env.YT_COOKIES_B64,
@@ -33,82 +27,60 @@ class Downloader {
             throw new Error("Failed to decode cookies: " + err.message);
         }
     }
-
     download(link) {
         if (!link) {
             return Promise.reject(new Error("Download link is required"));
         }
-
-        // Always regenerate cookies before every request
         try {
             this.ensureCookies();
         } catch (err) {
             return Promise.reject(err);
         }
-
         if (!fs.existsSync(this.cookiesPath)) {
             return Promise.reject(new Error("Cookies file not created"));
         }
-
         let referer = "https://www.youtube.com/";
         if (link.includes("instagram.com")) {
             referer = "https://www.instagram.com/";
         }
-
         const args = [
             "--cookies",
             this.cookiesPath,
-
-            "--extractor-args",
-            "youtube:player_client=android,web",
-
+            // "--extractor-args",
+            // "youtube:player_client=android,web",
             "--no-check-certificate",
             "--force-ipv4",
-
             "--no-part",
             "--no-cache-dir",
-
             "--socket-timeout",
             "30",
-
             "--retries",
             "10",
             "--fragment-retries",
             "10",
-
             "--sleep-requests",
             "2",
             "--sleep-interval",
             "3",
             "--max-sleep-interval",
             "10",
-
             "--user-agent",
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36",
-
             "--referer",
             referer,
-
             "--add-header",
             "Accept-Language:en-US,en;q=0.9",
-
             "--add-header",
             "Accept:text/html,application/xhtml+xml",
-
             "--restrict-filenames",
-
             "--merge-output-format",
             "mp4",
-
             "--print",
             "after_move:filepath",
-
             "-o",
             `${this.outputDir}/video_%(id)s.%(ext)s`,
-
             link
         ];
-
         return new Promise((resolve, reject) => {
             execFile(
                 "yt-dlp",
@@ -120,25 +92,32 @@ class Downloader {
                 (error, stdout, stderr) => {
                     console.log("STDOUT:\n", stdout);
                     console.log("STDERR:\n", stderr);
-
                     if (error) {
                         return reject(new Error(stderr || error.message));
                     }
-
-                    const filePath = stdout
+                    const lines = stdout
                         .split("\n")
                         .map(line => line.trim())
-                        .filter(Boolean)
-                        .pop();
-
+                        .filter(Boolean);
+                    let filePath = lines.find(line =>
+                        line.startsWith(this.outputDir)
+                    );
                     if (!filePath) {
-                        return reject(new Error("No output file returned from yt-dlp"));
+                        filePath = lines.pop();
                     }
-
+                    if (!filePath) {
+                        return reject(
+                            new Error("No output file returned from yt-dlp")
+                        );
+                    }
                     if (!fs.existsSync(filePath)) {
-                        return reject(new Error("Downloaded file not found on server"));
+                        return reject(
+                            new Error(
+                                "Downloaded file not found on server: " +
+                                filePath
+                            )
+                        );
                     }
-
                     resolve({
                         message: "Download completed",
                         filePath
