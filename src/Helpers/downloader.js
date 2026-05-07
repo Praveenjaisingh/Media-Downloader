@@ -9,10 +9,15 @@ class Downloader {
         }
         this.cookiesPath = "/tmp/cookies.txt";
         if (process.env.YT_COOKIES) {
-            fs.writeFileSync(
-                this.cookiesPath,
-                process.env.YT_COOKIES
-            );
+            if (process.env.YT_COOKIES_B64) {
+                const cookies = Buffer.from(
+                    process.env.YT_COOKIES_B64,
+                    "base64"
+                ).toString("utf8");
+
+                fs.writeFileSync(this.cookiesPath, cookies);
+                console.log("🍪 Cookies decoded from base64");
+            }
             console.log("🍪 Cookies file created");
             console.log("📁 Cookies path:", this.cookiesPath);
         } else {
