@@ -9,15 +9,10 @@ class Downloader {
         }
         this.cookiesPath = "/tmp/cookies.txt";
         if (process.env.YT_COOKIES) {
-            if (process.env.YT_COOKIES_B64) {
-                const cookies = Buffer.from(
-                    process.env.YT_COOKIES_B64,
-                    "base64"
-                ).toString("utf8");
-
-                fs.writeFileSync(this.cookiesPath, cookies);
-                console.log("🍪 Cookies decoded from base64");
-            }
+            fs.writeFileSync(
+                this.cookiesPath,
+                process.env.YT_COOKIES
+            );
             console.log("🍪 Cookies file created");
             console.log("📁 Cookies path:", this.cookiesPath);
         } else {
@@ -41,6 +36,8 @@ class Downloader {
         const args = [
             "--cookies",
             this.cookiesPath,
+            "--impersonate",
+            "chrome",
             "--extractor-args",
             "youtube:player_client=android,web",
             "--no-check-certificate",
