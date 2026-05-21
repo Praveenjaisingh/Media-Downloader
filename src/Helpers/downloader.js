@@ -54,40 +54,27 @@ class Downloader {
             "--merge-output-format",
             "mp4",
             "--print-to-file",
-            "after_move:filepath:" + this.outputMetaPath
-        ];
-        const youtubeArgs = isYouTube
-            ? [
-                "--extractor-args",
-                "youtube:player_client=android",
-                "--user-agent",
-                "com.google.android.youtube/19.09.37 (Linux; Android 11)",
-                "--add-header",
-                "X-YouTube-Client-Name:3",
-                "--add-header",
-                "X-YouTube-Client-Version:19.09.37"
-            ]
-            : [];
-
-        const instagramArgs = isInstagram
-            ? [
-                "--user-agent",
-                "Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X)",
-                "--extractor-args",
-                "instagram:api_version=1"
-            ]
-            : [];
-
-        const outputArgs = [
+            "after_move:filepath:" + this.outputMetaPath,
             "-o",
             `${this.outputDir}/video_%(id)s.%(ext)s`
         ];
-
+        const youtubeArgs = isYouTube
+            ? [
+                "--extractor-args=youtube:player_client=android",
+                "--user-agent=com.google.android.youtube/19.09.37 (Linux; Android 11)",
+                "--add-header=X-YouTube-Client-Name:3",
+                "--add-header=X-YouTube-Client-Version:19.09.37"
+            ]
+            : [];
+        const instagramArgs = isInstagram
+            ? [
+                "--user-agent=Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X)"
+            ]
+            : [];
         const args = [
             ...baseArgs,
             ...youtubeArgs,
             ...instagramArgs,
-            ...outputArgs,
             link
         ];
         return new Promise((resolve, reject) => {
