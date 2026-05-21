@@ -252,40 +252,71 @@
     </div>
     <script>
         async function download() {
-            const link = document.getElementById("link").value;
-            const status = document.getElementById("status");
-            const loader = document.getElementById("loader");
-            if (!link) {
-                status.innerHTML = "⚠️ Please enter a valid link";
-                return;
-            }
-            status.innerHTML = "⏳ Preparing your download...";
-            loader.style.display = "block";
-            try {
-                const res = await fetch("/api/downloadContent", {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                    },
-                    body: JSON.stringify({ link }),
-                });
-                const data = await res.json();
-                if (data.status) {
-                    status.innerHTML = "✅ Download ready! Starting...";
-                    const a = document.createElement("a");
-                    a.href = data.fileUrl;
-                    a.download = "";
-                    document.body.appendChild(a);
-                    a.click();
-                    a.remove();
-                } else {
-                    status.innerHTML = "❌ " + data.message;
+                const link = document.getElementById("link").value;
+                const status = document.getElementById("status");
+                const loader = document.getElementById("loader");
+                if (!link) {
+                    status.innerHTML = "⚠️ Please enter a valid link";
+                    return;
                 }
-            } catch (err) {
-                status.innerHTML = "❌ Server error. Please try again.";
+                status.innerHTML = "⏳ Preparing your download...";
+                loader.style.display = "block";
+                try {
+                    const res = await fetch("/api/downloadContent", {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                        },
+                        body: JSON.stringify({ link }),
+                    });
+                    const data = await res.json();
+                    if (data.status) {
+                        status.innerHTML = "✅ Download ready!";
+                        const a = document.createElement("a");
+                        a.href = data.fileUrl;
+                        a.download = "";
+                        document.body.appendChild(a);
+                        a.click();
+                        a.remove();
+                    } else {
+                        let errorMessage = "Download failed";
+                        if (Array.isArray(data.errors) && data.errors.length > 0) {
+                            errorMessage = data.errors
+                                .map(err => err.replace(/\n/g, "<br>"))
+                                .join("<br><br>");
+                        }
+                        status.innerHTML = `
+                <div style="
+                    text-align:left;
+                    background:rgba(255,0,0,0.12);
+                    padding:12px;
+                    border-radius:10px;
+                    margin-top:10px;
+                    color:#ffd4d4;
+                    font-size:13px;
+                    max-height:220px;
+                    overflow:auto;
+                ">
+                    ❌ ${errorMessage}
+                </div>
+            `;
+                    }
+                } catch (err) {
+                    status.innerHTML = `
+            <div style="
+                background:rgba(255,0,0,0.12);
+                padding:12px;
+                border-radius:10px;
+                color:#ffd4d4;
+            ">
+                ❌ ${err.message}
+            </div>
+        `;
+                    console.error(err);
+                } finally {
+                    loader.style.display = "none";
+                }
             }
-            loader.style.display = "none";
-        }
     </script>
 
 </body>
