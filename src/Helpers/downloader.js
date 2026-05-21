@@ -18,9 +18,7 @@ class Downloader {
                 process.env.YT_COOKIES_B64,
                 "base64"
             ).toString("utf8");
-
             fs.writeFileSync(this.cookiesPath, cookies);
-
             console.log("🍪 Cookies regenerated at runtime");
             console.log("📁 Cookies path:", this.cookiesPath);
         } catch (err) {
@@ -32,42 +30,50 @@ class Downloader {
             return Promise.reject(new Error("Download link is required"));
         }
         try {
-            this.ensureCookies();
+            if (!fs.existsSync(this.cookiesPath)) {
+                this.ensureCookies();
+            }
         } catch (err) {
             return Promise.reject(err);
         }
-        if (!fs.existsSync(this.cookiesPath)) {
-            return Promise.reject(new Error("Cookies file not created"));
-        }
-        let referer = "https://www.youtube.com/";
-        if (link.includes("instagram.com")) {
-            referer = "https://www.instagram.com/";
-        }
-        const args = [
+        const isYouTube =
+            link.includes("youtube.com") || link.includes("youtu.be");
+        const isInstagram = link.includes("instagram.com");
+        let args = [
             "--cookies",
             this.cookiesPath,
-            "--extractor-args",
-            "youtube:player_client=android",
-            "--user-agent",
-            "com.google.android.youtube/19.09.37 (Linux; Android 11)",
-            "--add-header",
-            "X-YouTube-Client-Name:3",
-            "--add-header",
-            "X-YouTube-Client-Version:19.09.37",
             "--force-ipv4",
             "--no-cache-dir",
             "--no-part",
             "--rm-cache-dir",
-            "--geo-bypass",
             "--no-check-certificates",
             "--merge-output-format",
             "mp4",
             "--print",
             "after_move:filepath",
             "-o",
-            `${this.outputDir}/video_%(id)s.%(ext)s`,
-            link
+            `${this.outputDir}/video_%(id)s.%(ext)s`
         ];
+        if (isYouTube) {
+            args.push(
+                "--extractor-args",
+                "youtube:player_client=android",
+                "--user-agent",
+                "com.google.android.youtube/19.09.37 (Linux; Android 11)",
+                "--add-header",
+                "X-YouTube-Client-Name:3",
+                "--add-header",
+                "X-YouTube-Client-Version:19.09.37"
+            );
+        }
+        if (isInstagram) {
+            args.push(
+                "--user-agent",
+                "Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko)  Version/15.0 Mobile/15E148 Safari/604.1",
+                "--extractor-args",
+                "instagram:api_version=1"
+            );
+        }
         return new Promise((resolve, reject) => {
             execFile(
                 "yt-dlp",
@@ -86,15 +92,25 @@ class Downloader {
                         .split("\n")
                         .map(line => line.trim())
                         .filter(Boolean);
-                    let filePath = lines.find(line =>
-                        line.startsWith(this.outputDir)
-                    );
+                    let filePath = lines
+                        .reverse()
+                        .find(line =>
+                            line.includes(this.outputDir) &&
+                            !line.endsWith(".html")
+                        );
                     if (!filePath) {
                         filePath = lines.pop();
                     }
                     if (!filePath) {
                         return reject(
                             new Error("No output file returned from yt-dlp")
+                        );
+                    }
+                    if (filePath.endsWith(".html")) {
+                        return reject(
+                            new Error(
+                                "Blocked or login-required page returned (.html instead of video)"
+                            )
                         );
                     }
                     if (!fs.existsSync(filePath)) {
