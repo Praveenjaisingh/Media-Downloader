@@ -43,7 +43,7 @@ class Downloader {
         if (fs.existsSync(this.outputMetaPath)) {
             fs.unlinkSync(this.outputMetaPath);
         }
-        const baseArgs = [
+        const args = [
             "--cookies",
             this.cookiesPath,
             "--force-ipv4",
@@ -58,25 +58,20 @@ class Downloader {
             "-o",
             `${this.outputDir}/video_%(id)s.%(ext)s`
         ];
-        const youtubeArgs = isYouTube
-            ? [
+        if (isYouTube) {
+            args.push(
                 "--extractor-args=youtube:player_client=android",
                 "--user-agent=com.google.android.youtube/19.09.37 (Linux; Android 11)",
                 "--add-header=X-YouTube-Client-Name:3",
                 "--add-header=X-YouTube-Client-Version:19.09.37"
-            ]
-            : [];
-        const instagramArgs = isInstagram
-            ? [
+            );
+        }
+        if (isInstagram) {
+            args.push(
                 "--user-agent=Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X)"
-            ]
-            : [];
-        const args = [
-            ...baseArgs,
-            ...youtubeArgs,
-            ...instagramArgs,
-            link
-        ];
+            );
+        }
+        args.push(link);
         return new Promise((resolve, reject) => {
             execFile(
                 "yt-dlp",
