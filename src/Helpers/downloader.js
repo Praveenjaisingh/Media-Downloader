@@ -43,7 +43,7 @@ class Downloader {
         if (fs.existsSync(this.outputMetaPath)) {
             fs.unlinkSync(this.outputMetaPath);
         }
-        let args = [
+        const baseArgs = [
             "--cookies",
             this.cookiesPath,
             "--force-ipv4",
@@ -56,8 +56,8 @@ class Downloader {
             "--print-to-file",
             "after_move:filepath:" + this.outputMetaPath
         ];
-        if (isYouTube) {
-            args.push(
+        const youtubeArgs = isYouTube
+            ? [
                 "--extractor-args",
                 "youtube:player_client=android",
                 "--user-agent",
@@ -66,19 +66,30 @@ class Downloader {
                 "X-YouTube-Client-Name:3",
                 "--add-header",
                 "X-YouTube-Client-Version:19.09.37"
-            );
-        }
-        if (isInstagram) {
-            args.push(
+            ]
+            : [];
+
+        const instagramArgs = isInstagram
+            ? [
                 "--user-agent",
-                "Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.0 Mobile/15E148 Safari/604.1",
+                "Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X)",
                 "--extractor-args",
                 "instagram:api_version=1"
-            );
-        }
-        args.push("-o");
-        args.push(`${this.outputDir}/video_%(id)s.%(ext)s`);
-        args.push(link);
+            ]
+            : [];
+
+        const outputArgs = [
+            "-o",
+            `${this.outputDir}/video_%(id)s.%(ext)s`
+        ];
+
+        const args = [
+            ...baseArgs,
+            ...youtubeArgs,
+            ...instagramArgs,
+            ...outputArgs,
+            link
+        ];
         return new Promise((resolve, reject) => {
             execFile(
                 "yt-dlp",
