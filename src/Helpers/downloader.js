@@ -5,6 +5,7 @@ class Downloader {
     constructor() {
         this.outputDir = "/tmp/downloads";
         this.cookiesPath = "/tmp/cookies.txt";
+        this.outputMetaPath = "/tmp/output.txt";
         if (!fs.existsSync(this.outputDir)) {
             fs.mkdirSync(this.outputDir, { recursive: true });
         }
@@ -39,6 +40,9 @@ class Downloader {
         const isYouTube =
             link.includes("youtube.com") || link.includes("youtu.be");
         const isInstagram = link.includes("instagram.com");
+        if (fs.existsSync(this.outputMetaPath)) {
+            fs.unlinkSync(this.outputMetaPath);
+        }
         let args = [
             "--cookies",
             this.cookiesPath,
@@ -49,8 +53,8 @@ class Downloader {
             "--no-check-certificates",
             "--merge-output-format",
             "mp4",
-            "--print",
-            "after_move:filepath",
+            "--print-to-file",
+            "after_move:filepath:" + this.outputMetaPath,
             "-o",
             `${this.outputDir}/video_%(id)s.%(ext)s`
         ];
@@ -69,7 +73,7 @@ class Downloader {
         if (isInstagram) {
             args.push(
                 "--user-agent",
-                "Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko)  Version/15.0 Mobile/15E148 Safari/604.1",
+                "Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.0 Mobile/15E148 Safari/604.1",
                 "--extractor-args",
                 "instagram:api_version=1"
             );
@@ -88,18 +92,23 @@ class Downloader {
                     if (error) {
                         return reject(new Error(stderr || error.message));
                     }
-                    const lines = stdout
-                        .split("\n")
-                        .map(line => line.trim())
-                        .filter(Boolean);
-                    let filePath = lines
-                        .reverse()
-                        .find(line =>
-                            line.includes(this.outputDir) &&
-                            !line.endsWith(".html")
-                        );
+                    let filePath = null;
+                    if (fs.existsSync(this.outputMetaPath)) {
+                        filePath = fs
+                            .readFileSync(this.outputMetaPath, "utf8")
+                            .trim();
+                    }
                     if (!filePath) {
-                        filePath = lines.pop();
+                        const lines = stdout
+                            .split("\n")
+                            .map(l => l.trim())
+                            .filter(Boolean);
+                        filePath = lines
+                            .reverse()
+                            .find(line =>
+                                line.includes(this.outputDir) &&
+                                !line.endsWith(".html")
+                            );
                     }
                     if (!filePath) {
                         return reject(
