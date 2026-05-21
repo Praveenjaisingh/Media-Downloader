@@ -54,10 +54,11 @@ class Downloader {
             "--merge-output-format",
             "mp4",
             "--print-to-file",
-            "after_move:filepath:" + this.outputMetaPath,
-            "-o",
-            `${this.outputDir}/video_%(id)s.%(ext)s`
+            "after_move:filepath:" + this.outputMetaPath
         ];
+        args.push("-o");
+        args.push(`${this.outputDir}/video_%(id)s.%(ext)s`);
+        args.push(link);
         if (isYouTube) {
             args.push(
                 "--extractor-args",
