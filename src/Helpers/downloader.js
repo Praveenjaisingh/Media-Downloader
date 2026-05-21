@@ -5,7 +5,6 @@ class Downloader {
     constructor() {
         this.outputDir = "/tmp/downloads";
         this.cookiesPath = "/tmp/cookies.txt";
-        this.outputMetaPath = "/tmp/output.txt";
         if (!fs.existsSync(this.outputDir)) {
             fs.mkdirSync(this.outputDir, { recursive: true });
         }
@@ -14,49 +13,35 @@ class Downloader {
         if (!process.env.YT_COOKIES_B64) {
             throw new Error("YT_COOKIES_B64 missing in environment");
         }
-        try {
-            const cookies = Buffer.from(
-                process.env.YT_COOKIES_B64,
-                "base64"
-            ).toString("utf8");
-            fs.writeFileSync(this.cookiesPath, cookies);
-            console.log("🍪 Cookies regenerated at runtime");
-            console.log("📁 Cookies path:", this.cookiesPath);
-        } catch (err) {
-            throw new Error("Failed to decode cookies: " + err.message);
-        }
+        const cookies = Buffer.from(
+            process.env.YT_COOKIES_B64,
+            "base64"
+        ).toString("utf8");
+        fs.writeFileSync(this.cookiesPath, cookies);
     }
     download(link) {
         if (!link) {
             return Promise.reject(new Error("Download link is required"));
         }
-        try {
-            if (!fs.existsSync(this.cookiesPath)) {
-                this.ensureCookies();
-            }
-        } catch (err) {
-            return Promise.reject(err);
+        if (!fs.existsSync(this.cookiesPath)) {
+            this.ensureCookies();
         }
         const isYouTube =
             link.includes("youtube.com") || link.includes("youtu.be");
         const isInstagram = link.includes("instagram.com");
-        if (fs.existsSync(this.outputMetaPath)) {
-            fs.unlinkSync(this.outputMetaPath);
-        }
+        const outputTemplate = `${this.outputDir}/video_%(id)s_%(epoch)s.%(ext)s`;
         const args = [
             "--cookies",
             this.cookiesPath,
             "--force-ipv4",
             "--no-cache-dir",
             "--no-part",
-            "--rm-cache-dir",
-            "--no-check-certificates",
+            "--no-continue",
+            "--no-overwrites",
             "--merge-output-format",
             "mp4",
-            "--print-to-file",
-            "after_move:filepath:" + this.outputMetaPath,
             "-o",
-            `${this.outputDir}/video_%(id)s.%(ext)s`
+            outputTemplate
         ];
         if (isYouTube) {
             args.push(
@@ -73,63 +58,27 @@ class Downloader {
         }
         args.push(link);
         return new Promise((resolve, reject) => {
-            execFile(
-                "yt-dlp",
-                args,
-                {
-                    maxBuffer: 1024 * 1024 * 20,
-                    timeout: 300000
-                },
-                (error, stdout, stderr) => {
-                    console.log("STDOUT:\n", stdout);
-                    console.log("STDERR:\n", stderr);
-                    if (error) {
-                        return reject(new Error(stderr || error.message));
-                    }
-                    let filePath = null;
-                    if (fs.existsSync(this.outputMetaPath)) {
-                        filePath = fs
-                            .readFileSync(this.outputMetaPath, "utf8")
-                            .trim();
-                    }
-                    if (!filePath) {
-                        const lines = stdout
-                            .split("\n")
-                            .map(l => l.trim())
-                            .filter(Boolean);
-                        filePath = lines
-                            .reverse()
-                            .find(line =>
-                                line.includes(this.outputDir) &&
-                                !line.endsWith(".html")
-                            );
-                    }
-                    if (!filePath) {
-                        return reject(
-                            new Error("No output file returned from yt-dlp")
-                        );
-                    }
-                    if (filePath.endsWith(".html")) {
-                        return reject(
-                            new Error(
-                                "Blocked or login-required page returned (.html instead of video)"
-                            )
-                        );
-                    }
-                    if (!fs.existsSync(filePath)) {
-                        return reject(
-                            new Error(
-                                "Downloaded file not found on server: " +
-                                filePath
-                            )
-                        );
-                    }
-                    resolve({
-                        message: "Download completed",
-                        filePath
-                    });
+            execFile("yt-dlp", args, { timeout: 300000 }, (error, stdout, stderr) => {
+                if (error) {
+                    return reject(new Error(stderr || error.message));
                 }
-            );
+                const files = fs.readdirSync(this.outputDir);
+                const videoFile = files
+                    .filter(f => f.endsWith(".mp4"))
+                    .map(f => ({
+                        name: f,
+                        time: fs.statSync(`${this.outputDir}/${f}`).mtimeMs
+                    }))
+                    .sort((a, b) => b.time - a.time)[0];
+                if (!videoFile) {
+                    return reject(new Error("No output file found"));
+                }
+                const filePath = `${this.outputDir}/${videoFile.name}`;
+                resolve({
+                    message: "Download completed",
+                    filePath
+                });
+            });
         });
     }
 }
