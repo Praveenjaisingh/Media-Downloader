@@ -2,8 +2,8 @@
 <html lang="en">
 
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Media Downloader</title>
 
     <style>
@@ -11,154 +11,267 @@
             margin: 0;
             padding: 0;
             box-sizing: border-box;
-            font-family: 'Segoe UI', sans-serif;
+            font-family: "Poppins", sans-serif;
         }
 
         body {
             min-height: 100vh;
-            background: linear-gradient(135deg, #667eea, #764ba2);
             display: flex;
-            align-items: center;
             justify-content: center;
-            color: white;
+            align-items: center;
+            overflow: hidden;
+            background: linear-gradient(-45deg, #6a11cb, #2575fc, #ff416c, #ff4b2b);
+            background-size: 400% 400%;
+            animation: gradientBG 12s ease infinite;
             padding: 20px;
         }
 
+        @keyframes gradientBG {
+            0% {
+                background-position: 0% 50%;
+            }
+
+            50% {
+                background-position: 100% 50%;
+            }
+
+            100% {
+                background-position: 0% 50%;
+            }
+        }
+
+        /* Floating circles */
+        .circle {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(60px);
+            opacity: 0.4;
+            z-index: 0;
+        }
+
+        .circle1 {
+            width: 250px;
+            height: 250px;
+            background: #00f2fe;
+            top: -80px;
+            left: -80px;
+        }
+
+        .circle2 {
+            width: 300px;
+            height: 300px;
+            background: #ff00ff;
+            bottom: -100px;
+            right: -100px;
+        }
+
         .container {
-            background: rgba(255, 255, 255, 0.1);
-            backdrop-filter: blur(15px);
-            padding: 30px 20px;
-            border-radius: 20px;
+            position: relative;
+            z-index: 2;
             width: 100%;
-            max-width: 400px;
+            max-width: 420px;
+            padding: 35px 25px;
+            border-radius: 25px;
+
+            background: rgba(255, 255, 255, 0.12);
+            backdrop-filter: blur(18px);
+            -webkit-backdrop-filter: blur(18px);
+
+            border: 1px solid rgba(255, 255, 255, 0.2);
+
+            box-shadow:
+                0 8px 32px rgba(0, 0, 0, 0.25),
+                inset 0 0 20px rgba(255, 255, 255, 0.05);
+
             text-align: center;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            color: white;
+        }
+
+        .logo {
+            font-size: 55px;
+            margin-bottom: 10px;
+            animation: float 3s ease-in-out infinite;
+        }
+
+        @keyframes float {
+
+            0%,
+            100% {
+                transform: translateY(0px);
+            }
+
+            50% {
+                transform: translateY(-8px);
+            }
         }
 
         h1 {
-            margin-bottom: 20px;
-            font-size: 24px;
+            font-size: 28px;
+            margin-bottom: 8px;
+            font-weight: 700;
+        }
+
+        .subtitle {
+            font-size: 14px;
+            opacity: 0.8;
+            margin-bottom: 25px;
+        }
+
+        .input-box {
+            position: relative;
+            margin-bottom: 18px;
         }
 
         input {
             width: 100%;
-            padding: 12px;
-            border-radius: 10px;
-            border: none;
-            outline: none;
-            margin-bottom: 15px;
+            padding: 15px 18px;
+            border-radius: 14px;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            background: rgba(255, 255, 255, 0.08);
+            color: white;
             font-size: 14px;
+            outline: none;
+            transition: 0.3s;
+        }
+
+        input::placeholder {
+            color: rgba(255, 255, 255, 0.6);
+        }
+
+        input:focus {
+            border-color: #00eaff;
+            box-shadow: 0 0 12px rgba(0, 234, 255, 0.6);
         }
 
         button {
             width: 100%;
-            padding: 12px;
-            border-radius: 10px;
+            padding: 15px;
             border: none;
-            background: linear-gradient(to right, #00c6ff, #0072ff);
-            color: white;
+            border-radius: 14px;
             font-size: 16px;
+            font-weight: 600;
+            color: white;
             cursor: pointer;
-            transition: 0.3s;
+
+            background: linear-gradient(135deg, #00c6ff, #0072ff);
+
+            transition: 0.3s ease;
+            box-shadow: 0 5px 20px rgba(0, 114, 255, 0.4);
         }
 
         button:hover {
-            transform: scale(1.03);
+            transform: translateY(-2px) scale(1.02);
+            box-shadow: 0 8px 25px rgba(0, 114, 255, 0.6);
         }
 
-        .status {
-            margin-top: 15px;
-            font-size: 14px;
-            word-break: break-word;
+        button:active {
+            transform: scale(0.98);
         }
 
         .loader {
-            margin-top: 15px;
             width: 100%;
-            height: 6px;
-            background: rgba(255, 255, 255, 0.2);
-            border-radius: 10px;
+            height: 8px;
+            margin-top: 18px;
+            border-radius: 20px;
             overflow: hidden;
+            background: rgba(255, 255, 255, 0.12);
             display: none;
         }
 
         .progress {
+            width: 40%;
             height: 100%;
-            width: 0%;
-            background: #00ffcc;
-            animation: load 2s infinite;
+            background: linear-gradient(90deg, #00fff0, #00c6ff);
+            border-radius: 20px;
+            animation: loading 1.2s infinite ease-in-out;
         }
 
-        @keyframes load {
-            0% { width: 0%; }
-            50% { width: 80%; }
-            100% { width: 0%; }
+        @keyframes loading {
+            0% {
+                transform: translateX(-100%);
+            }
+
+            100% {
+                transform: translateX(300%);
+            }
         }
 
-        /* 🔥 Mobile Tweaks */
+        .status {
+            margin-top: 18px;
+            font-size: 14px;
+            min-height: 20px;
+            opacity: 0.95;
+            word-break: break-word;
+        }
+
+        .footer {
+            margin-top: 25px;
+            font-size: 12px;
+            opacity: 0.6;
+        }
+
         @media (max-width: 480px) {
             .container {
-                padding: 25px 15px;
-                border-radius: 15px;
+                padding: 28px 18px;
             }
 
             h1 {
-                font-size: 20px;
+                font-size: 24px;
             }
 
-            input, button {
-                font-size: 14px;
-                padding: 10px;
+            .logo {
+                font-size: 45px;
+            }
+
+            input,
+            button {
+                padding: 13px;
             }
         }
     </style>
-
 </head>
 
 <body>
-
+    <div class="circle circle1"></div>
+    <div class="circle circle2"></div>
     <div class="container">
-        <h1>🎬 Downloader</h1>
-
-        <input type="text" id="link" placeholder="Paste video/audio link here..." />
-
-        <button onclick="download()">Download</button>
-
+        <div class="logo">🎬</div>
+        <h1>Media Downloader</h1>
+        <p class="subtitle">Fast • Stylish • Secure Downloads</p>
+        <div class="input-box">
+            <input type="text" id="link" placeholder="Paste your video/audio URL here..." />
+        </div>
+        <button onclick="download()">⬇ Download Now</button>
         <div class="loader" id="loader">
             <div class="progress"></div>
         </div>
-
         <div class="status" id="status"></div>
+        <div class="footer">
+            Made with ❤️
+        </div>
     </div>
-
     <script>
         async function download() {
             const link = document.getElementById("link").value;
             const status = document.getElementById("status");
             const loader = document.getElementById("loader");
-
             if (!link) {
-                status.innerText = "⚠️ Please enter a link";
+                status.innerHTML = "⚠️ Please enter a valid link";
                 return;
             }
-
-            status.innerText = "⏳ Downloading...";
+            status.innerHTML = "⏳ Preparing your download...";
             loader.style.display = "block";
-
             try {
                 const res = await fetch("/api/downloadContent", {
                     method: "POST",
                     headers: {
-                        "Content-Type": "application/json"
+                        "Content-Type": "application/json",
                     },
-                    body: JSON.stringify({ link })
+                    body: JSON.stringify({ link }),
                 });
-
                 const data = await res.json();
-
                 if (data.status) {
-                    status.innerText = "✅ Download ready!";
-
+                    status.innerHTML = "✅ Download ready! Starting...";
                     const a = document.createElement("a");
                     a.href = data.fileUrl;
                     a.download = "";
@@ -166,13 +279,11 @@
                     a.click();
                     a.remove();
                 } else {
-                    status.innerText = "❌ Failed: " + data.message;
+                    status.innerHTML = "❌ " + data.message;
                 }
-
             } catch (err) {
-                status.innerText = "❌ Server error";
+                status.innerHTML = "❌ Server error. Please try again.";
             }
-
             loader.style.display = "none";
         }
     </script>
