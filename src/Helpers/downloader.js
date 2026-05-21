@@ -56,9 +56,6 @@ class Downloader {
             "--print-to-file",
             "after_move:filepath:" + this.outputMetaPath
         ];
-        args.push("-o");
-        args.push(`${this.outputDir}/video_%(id)s.%(ext)s`);
-        args.push(link);
         if (isYouTube) {
             args.push(
                 "--extractor-args",
@@ -79,6 +76,9 @@ class Downloader {
                 "instagram:api_version=1"
             );
         }
+        args.push("-o");
+        args.push(`${this.outputDir}/video_%(id)s.%(ext)s`);
+        args.push(link);
         return new Promise((resolve, reject) => {
             execFile(
                 "yt-dlp",
