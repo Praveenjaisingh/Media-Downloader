@@ -1,6 +1,5 @@
 const { execFile } = require("child_process");
 const fs = require("fs");
-const path = require("path");
 
 class Downloader {
     constructor() {
@@ -9,118 +8,77 @@ class Downloader {
         if (!fs.existsSync(this.outputDir)) {
             fs.mkdirSync(this.outputDir, { recursive: true });
         }
-        this.writeCookies();
     }
-    writeCookies() {
-        const cookies = process.env.YT_COOKIES;
-        if (!cookies) {
-            throw new Error("YT_COOKIES environment variable missing");
+    ensureCookies() {
+        if (!process.env.YT_COOKIES_B64) {
+            throw new Error("YT_COOKIES_B64 missing in environment");
         }
+        const cookies = Buffer.from(
+            process.env.YT_COOKIES_B64,
+            "base64"
+        ).toString("utf8");
         fs.writeFileSync(this.cookiesPath, cookies);
-    }
-    async clearOldFiles() {
-        const files = fs.readdirSync(this.outputDir);
-        for (const file of files) {
-            try {
-                fs.unlinkSync(path.join(this.outputDir, file));
-            } catch (err) {
-                console.log(err);
-            }
-        }
     }
     download(link) {
         if (!link) {
-            return Promise.reject(
-                new Error("Download link is required")
+            return Promise.reject(new Error("Download link is required"));
+        }
+        if (!fs.existsSync(this.cookiesPath)) {
+            this.ensureCookies();
+        }
+        const isYouTube =
+            link.includes("youtube.com") || link.includes("youtu.be");
+        const isInstagram = link.includes("instagram.com");
+        const outputTemplate = `${this.outputDir}/video_%(id)s_%(epoch)s.%(ext)s`;
+        const args = [
+            "--cookies",
+            this.cookiesPath,
+            "--force-ipv4",
+            "--no-cache-dir",
+            "--no-part",
+            "--no-continue",
+            "--no-overwrites",
+            "--merge-output-format",
+            "mp4",
+            "-o",
+            outputTemplate
+        ];
+        if (isYouTube) {
+            args.push(
+                "--extractor-args=youtube:player_client=android",
+                "--user-agent=com.google.android.youtube/19.09.37 (Linux; Android 11)",
+                "--add-header=X-YouTube-Client-Name:3",
+                "--add-header=X-YouTube-Client-Version:19.09.37"
             );
         }
-        return new Promise(async (resolve, reject) => {
-            try {
-                await this.clearOldFiles();
-                const isYouTube =
-                    link.includes("youtube.com") ||
-                    link.includes("youtu.be");
-                const isInstagram =
-                    link.includes("instagram.com");
-                const outputTemplate =
-                    `${this.outputDir}/video_%(id)s_%(timestamp)s.%(ext)s`;
-                const args = [
-                    "--cookies",
-                    this.cookiesPath,
-                    "--force-ipv4",
-                    "--no-cache-dir",
-                    "--no-part",
-                    "--no-continue",
-                    "--no-overwrites",
-                    "--no-playlist",
-                    "--merge-output-format",
-                    "mp4",
-                    "-o",
-                    outputTemplate
-                ];
-                if (isYouTube) {
-                    args.push(
-                        "--sleep-requests", "2",
-                        "--sleep-interval", "2",
-                        "--max-sleep-interval", "5",
-                        "--extractor-args",
-                        "youtube:player_client=web;player_skip=webpage,configs",
-                        "--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36",
-                        "--add-header=Accept-Language:en-US,en;q=0.9"
-                    );
+        if (isInstagram) {
+            args.push(
+                "--user-agent=Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X)"
+            );
+        }
+        args.push(link);
+        return new Promise((resolve, reject) => {
+            execFile("yt-dlp", args, { timeout: 300000 }, (error, stdout, stderr) => {
+                if (error) {
+                    return reject(new Error(stderr || error.message));
                 }
-                if (isInstagram) {
-                    args.push(
-                        "--user-agent=Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1",
-                        "--add-header=Referer:https://www.instagram.com/",
-                        "--add-header=Origin:https://www.instagram.com",
-                        "--add-header=Accept-Language:en-US,en;q=0.9"
-                    );
+                const files = fs.readdirSync(this.outputDir);
+                const videoFile = files
+                    .filter(f => f.endsWith(".mp4"))
+                    .map(f => ({
+                        name: f,
+                        time: fs.statSync(`${this.outputDir}/${f}`).mtimeMs
+                    }))
+                    .sort((a, b) => b.time - a.time)[0];
+                if (!videoFile) {
+                    return reject(new Error("No output file found"));
                 }
-                args.push(link);
-                execFile(
-                    "yt-dlp",
-                    args,
-                    { timeout: 300000 },
-                    (error, stdout, stderr) => {
-                        console.log(stdout);
-                        console.log(stderr);
-                        if (error) {
-                            return reject(
-                                new Error(stderr || error.message)
-                            );
-                        }
-                        const files = fs.readdirSync(this.outputDir);
-                        const mediaFile = files.find(file =>
-                            /\.(mp4|mkv|webm|mov)$/i.test(file)
-                        );
-                        if (!mediaFile) {
-                            const htmlFile = files.find(file =>
-                                file.endsWith(".html")
-                            );
-                            if (htmlFile) {
-                                return reject(
-                                    new Error(
-                                        "Platform returned login/challenge page instead of media"
-                                    )
-                                );
-                            }
-                            return reject(
-                                new Error("No media file found")
-                            );
-                        }
-                        resolve({
-                            message: "Download completed",
-                            filePath: path.join(
-                                this.outputDir,
-                                mediaFile
-                            )
-                        });
-                    }
-                );
-            } catch (err) {
-                reject(err);
-            }
+                const filePath = `${this.outputDir}/${videoFile.name}`;
+                resolve({
+                    message: "Download completed",
+                    filePath
+                });
+            });
         });
     }
 }
